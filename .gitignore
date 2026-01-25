@@ -1,0 +1,36 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Pytest
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Env / secrets
+.env
+.env.*
+
+# direnv
+.envrc
+
+# VS Code
+.vscode/
+!.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# macOS
+.DS_Store
+
+# Virtual envs
+.venv/
+.venv*/
+
+# Optional tooling caches
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+

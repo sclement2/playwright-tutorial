@@ -1,0 +1,132 @@
+DEVELOPMENT SETUP FOR MAC. PC IS REFERENCED IN THE CHATGPT CONVERSATION
+https://chatgpt.com/share/695863f1-3e28-8002-a4d0-3a0fcb392942
+
+CREATE PYPROJECT.TOML FROM REQUIREMENTS.TXT (UV-NATIVE WORKFLOW)
+If you’re using uv sync, the “source of truth” is pyproject.toml + uv.lock
+
+1) Make a project and generate a minimal pyproject.toml
+If you only want the pyproject.toml (no README/main.py/etc):
+mkdir myproj
+cd myproj
+uv init --bare
+This creates just pyproject.toml
+
+(If you want a normal starter layout, use uv init without --bare.) 
+
+2) Import your requirements into pyproject.toml
+From inside the project directory:
+uv add -r /path/to/requirements.txt
+This reads the requirements file and adds entries to [project].dependencies.
+
+3) (Optional) Import dev requirements into the dev dependency group
+If you have something like requirements-dev.txt:
+uv add --dev -r /path/to/requirements-dev.txt
+uv stores dev deps under [dependency-groups].dev, and uv sync installs the dev group by default. 
+
+4) Lock + sync
+You can run:
+uv lock
+uv sync
+(or just uv sync —locking/syncing are designed to be automatic in uv projects).
+
+What you should see in pyproject.toml
+A minimal shape looks like:
+[project]
+name = "myproj"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "requests==2.32.3",
+  "pandas>=2.2",
+]
+requires-python is recommended to set.
+
+
+IN EACH PROJECT, CREATE .envrc -- enables the location of the .venv folder to be outside of a folder that gets uploaded to iCloud.
+
+From your project folder:
+mkdir -p ~/.venvs
+echo 'export UV_PROJECT_ENVIRONMENT="$HOME/.venvs/$(basename "$PWD")"' > .envrc
+direnv allow
+
+Now you just run:
+uv sync
+…and it will always use ~/.venvs/<project> automatically when you’re in that folder.
+
+QUICK VERIFICATION:
+From the project folder:
+uv run python -c "import sys; print(sys.executable)"
+
+You should see something like:
+/Users/<you>/.venvs/<project>/bin/python
+
+
+WHAT THE SETTING IN THE .envrc DOES
+UV_PROJECT_ENVIRONMENT="$HOME/.venvs/$(basename "$PWD")"
+
+What it means (piece by piece)
+- UV_PROJECT_ENVIRONMENT=...
+This is an environment variable that tells uv where to create/use the virtual environment for this project, instead of the default ./.venv.
+
+- "$HOME/.venvs/..."
+Puts the environment in your home folder under ~/.venvs (which is not iCloud-synced, unlike Desktop/Documents).
+
+- $(basename "$PWD")
+"$PWD" is your current directory (the project folder).
+basename takes just the folder name.
+So if you’re in ~/Documents/MyApp, it becomes MyApp, and the env path becomes:
+~/.venvs/MyApp
+
+- uv sync
+Creates/updates that environment and installs what your project needs.
+So: “Sync this project’s environment, but store it at ~/.venvs/<project-folder-name>.”
+
+If direnv is not working may need to add the following to .zshrc file
+eval "$(direnv hook zsh)"
+and then source ~/.zshrc to update the current terminal
+
+IN VS CODE, THERE ARE TWO SEPARATE THINGS TO SET UP:
+1. What interpreter does the Python extension use (Run, Debug, linting, Jupyter), and
+2. What your integrated terminal shell uses when you type python, pip, etc.
+
+To make the VS Code terminal use the right venv, do this:
+1) Set the interpreter for the workspace (this is the key)
+Cmd+Shift+P → Python: Select Interpreter
+Choose: ~/.venvs/<your-project>/bin/python
+VS Code will store that choice for the workspace.
+
+2) Ensure the terminal auto-activates the selected env
+In VS Code Settings, make sure:
+Python › Terminal: Activate Environment = On
+This causes new terminals to run the activation script automatically (so Python points to the .venv).
+
+3) (Most reliable) Put it in .vscode/settings.json
+Add this to your project:
+{
+  "python.defaultInterpreterPath": "${env:HOME}/.venvs/${workspaceFolderBasename}/bin/python",
+  "python.terminal.activateEnvironment": true
+}
+
+Now, when you open a new terminal in that workspace, it should activate the venv.
+
+IF IT STILL DOESN’T ACTIVATE
+Common causes:
+You opened a new terminal before selecting the interpreter → open a new terminal after selecting it.
+Your default shell is zsh but VS Code is launching a login/non-login shell differently.
+
+A bulletproof fallback is to have the terminal run activation automatically. 
+Add this to .vscode/settings.json:
+{
+  "terminal.integrated.env.osx": {
+    "VIRTUAL_ENV": "${env:HOME}/.venvs/${workspaceFolderBasename}",
+    "PATH": "${env:HOME}/.venvs/${workspaceFolderBasename}/bin:${env:PATH}"
+  }
+}
+The above setting forces Python/pip to resolve to that env even if activation doesn’t run.
+
+
+QUICK “AM I STILL IN THE RIGHT ENVIRONMENT?” CHECK
+Any time:
+python -c "import sys; print(sys.prefix)"
+
+If it prints something under ~/.venvs/M2_UGL_1_working, you’re in the venv.
